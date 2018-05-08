@@ -29,8 +29,8 @@ public class ChessBoard {
 	private void buildFrame() {
 	      window = new JFrame("Eight Queens");
 	      window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	      window.setSize(new Dimension(WIDTH, HEIGHT));
-	      window.setLayout(new BoxLayout(window.getContentPane(), BoxLayout.Y_AXIS)); 
+	      window.setBounds(0, 0 ,WIDTH, HEIGHT);
+	      window.setResizable(false);
 	      addPanels();
 	   } 
 	   
@@ -40,7 +40,7 @@ public class ChessBoard {
 		  int ySize = 50;
 		  ChessSquarePanel sqr = new ChessSquarePanel(colorOne, true);
 		  int index = 0;
-		  for (int i = 0; i < ROWS; i++) {
+	/*	  for (int i = 0; i < ROWS; i++) {
 			  for (int j = 0; j < COLS; j++) {
 				  if (index % 2 == 0) {
 					 sqr = new ChessSquarePanel(colorOne, true); 
@@ -53,6 +53,13 @@ public class ChessBoard {
 				  index++;
 			  }
 		  } */
+		  sqr.setBounds(0, 0, 50, 50);
+		  
+		  ChessSquarePanel sqr2 = new ChessSquarePanel(colorTwo, true);
+		  sqr2.setBounds(0, 50, 50, 50);
+		  window.add(new ChessSquarePanel(Color.white, true));
+		  window.add(sqr);
+		  window.add(sqr2);
 	  }
 	 
 
