@@ -56,7 +56,7 @@ public class ChessBoard {
 	private final String SOLUTION_NUM = "Displaying solution number: ";
 	
 	//Data Structures used
-	private ArrayList<ChessSquarePanel[][]> allSolutionsFound = new ArrayList<ChessSquarePanel[][]>();
+	private ArrayList<ChessSquarePanel[][]> allSolutionsFound = new ArrayList<ChessSquarePanel[][]>(1000);
 	private ChessSquarePanel[][] chessGrid = new ChessSquarePanel[ROWS][COLS];
 	private int[] givenCols = new int[8];
 	
@@ -307,7 +307,7 @@ public class ChessBoard {
 		   
 		   
 		   for (ChessSquarePanel[][] g : allSolutionsFound) {
-			   if (!gridEqual(g, copy))
+			   if (gridEqual(copy, g))
 				   return false;
 		   }
 		   allSolutionsFound.add(copy);
@@ -456,12 +456,12 @@ public class ChessBoard {
 			   for (int c = 0; c < ROWS; c++)  {
 				   boolean a = g1[r][c].hasQueen();
 			   	   boolean b = g2[r][c].hasQueen();
-				   if (b != a)
+				   if (!(b == a))
 					return false;
 			   }
-		   }
+		   } 
 		   
-		   return true;
+		  return true;
 		   
 	   }
 	   
@@ -505,7 +505,7 @@ public class ChessBoard {
 	    	  cb.givenCols[i] = Integer.parseInt(s);
 	      }
 	      
-	      while (solNum < 1000)
+	      while (solNum < 10000)
 	    	  cb.action();
 	      double s = (cb.numSuccess / (double) solNum) * 100;
 	      System.out.println(SUCCESS_RATE + " " + s + "%");
