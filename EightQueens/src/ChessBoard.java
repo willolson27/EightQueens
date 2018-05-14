@@ -296,7 +296,7 @@ public class ChessBoard {
 	    */
 	   public boolean storeSolution() {
 		   
-		   ChessSquarePanel[][] copy = new ChessSquarePanel[8][8];
+		   ChessSquarePanel[][] copy = new ChessSquarePanel[n][n];
 
 		   for (int r = 0; r < ROWS; r ++) {
 			   for (int c = 0; c < COLS; c++) {
