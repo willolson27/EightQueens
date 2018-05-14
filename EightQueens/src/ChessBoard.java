@@ -1,9 +1,18 @@
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.ListIterator;
+import java.util.Scanner;
+
 import javax.swing.BoxLayout;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -16,37 +25,51 @@ import javax.swing.JPanel;
  */
 public class ChessBoard {
 
-	
-	//Fields
+// FIELDS	
+
+	//numbers used for various things
 	private int n;
-	private static final int ROWS = 8;
-	private static final int COLS = 8;
-	private static final int WIDTH = 1000;
+	private int ROWS = 8;
+	private int COLS = 8;
+	private static final int WIDTH = 800;
 	private static final int HEIGHT = 1000;
+	private static int solNum = 0;
+	private int numSuccess = 0;
+
+	
+	//Graphics Components
 	private Color colorOne = Color.WHITE;
 	private Color colorTwo = Color.BLACK;
 	private JFrame window;
+	
+	//String Constants
 	private final String SOLVED = "Eight Queens Solved! Iteration no: ";
+	private final String FAILED = "Failed to Solve :( Iteration no: ";
 	private final String RUN = "GO!";
-	private int solNum = 0;
-	private final int MAX_ITER = 1000;
+	private final String CLEAR = "Clear";
+	private final static String SUCCESS_RATE = "Success Rate";
+	private static final String DISPLAY = "Display Solutions";
+	private static final String WILLS = "Display Will's Solution: ";
+	private static final String ERROR_IO = "Error: file not found";
+	private static final String ERROR_SO = "Error: Stack Overflow";
+
+	private final String SOLUTION_NUM = "Displaying solution number: ";
 	
+	//Data Structures used
+	private ArrayList<ChessSquarePanel[][]> allSolutionsFound = new ArrayList<ChessSquarePanel[][]>();
 	private ChessSquarePanel[][] chessGrid = new ChessSquarePanel[ROWS][COLS];
+	private int[] givenCols = new int[8];
 	
-	private int iter = 0;
+//METHODS
+	
+	//CONSTRUCTORS AND GRAPHICS
 	
 	/**
 	 * creates a new default instance of ChessBoard for Eight Queens
 	 */
 	public ChessBoard() {
 	
-		n = 8;
-		buildFrame();
-		JPanel panelOne = buildGridPanels();
-		JPanel panelTwo = bottomPanel();
-		window.add(panelOne);
-		window.add(panelTwo);
-		window.setVisible(true);
+		this(8);
 	}
 	
 	/**
@@ -56,12 +79,17 @@ public class ChessBoard {
 	public ChessBoard(int queens) {
 		
 		n = queens;
+		ROWS = n;
+		COLS = n;
 		buildFrame();
 		JPanel panelOne = buildGridPanels();
+		panelOne.setPreferredSize(new Dimension(800, 800));
 		JPanel panelTwo = bottomPanel();
+		panelTwo.setBounds(0, HEIGHT - 200, WIDTH, 200);
 		window.add(panelOne);
 		window.add(panelTwo);
 		window.setVisible(true);
+		window.setResizable(false);
 	}
 	
 	/**
@@ -71,14 +99,14 @@ public class ChessBoard {
 	      window = new JFrame("Eight Queens");
 	      window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	      window.setSize(new Dimension(WIDTH, HEIGHT));
-	      window.setLayout(new BoxLayout(window.getContentPane(), BoxLayout.Y_AXIS)); 
+	      window.setLayout(new FlowLayout()); 
 	      
 	   } 
 	   
 
 	/**
 	 * builds the JPanel containing a n*n grid of ChessSquarePanels
-	 * @return
+	 * @return JPanel that contains the Chess Grid
 	 */
 	public JPanel buildGridPanels() {
 	      JPanel grid = new JPanel();
@@ -92,6 +120,7 @@ public class ChessBoard {
 	            grid.add(s);	           
 	         }
 	      }
+	      grid.setPreferredSize(new Dimension(800,800));
 	      return grid;
 	   }
 	
@@ -104,21 +133,16 @@ public class ChessBoard {
 		JButton go = new JButton(RUN);
 		go.addActionListener(e -> action());
 		bottom.add(go);
+		JButton display = new JButton(DISPLAY);
+		display.addActionListener(e -> displaySolutions());
+		bottom.add(display);
+		JButton clear = new JButton(CLEAR);
+		clear.addActionListener(e -> clear());
+		bottom.add(clear);
+		JButton wills = new JButton(WILLS);
+		wills.addActionListener(e -> displayGivenSol(givenCols));
+		bottom.add(wills);
 		return bottom;
-	}
-	
-	/**
-	 * Runs the n Queens program, called when the button is pressed
-	 */
-	public void action() {
-		
-		this.clear();
-		ArrayList<Integer> unusedCols = new ArrayList<Integer>();
-		for (int i = 0; i < 8; i++) {
-			unusedCols.add(i);
-		} 
-		System.out.println(this.catchOverflow(unusedCols));
-		
 	}
 	
 	/**
@@ -135,6 +159,22 @@ public class ChessBoard {
 			else
 				return colorTwo;
 		}
+	
+//Methods used to actually run the program	
+	
+	/**
+	 * Runs the n Queens program, called when the button is pressed
+	 */
+	public void action() {
+		
+		this.clear();
+		ArrayList<Integer> unusedCols = new ArrayList<Integer>();
+		for (int i = 0; i < n; i++) {
+			unusedCols.add(i);
+		} 
+		System.out.println(this.catchOverflow(unusedCols));
+		storeSolution();
+	}
 	 
 	 /**
 	  * checks if a placement at a given coordinate is valid/legal
@@ -155,13 +195,13 @@ public class ChessBoard {
 				  return false;
 			  
 		  //Check diagonally
-		  for (int r = row, c = col; r < 8 && c < 8; r++, c++)
+		  for (int r = row, c = col; r < n && c < n; r++, c++)
 			  if (chessGrid[r][c].hasQueen()) 
 				  return false;
-		  for (int r = row, c = col; r < 8 && c >= 0; r++, c--)
+		  for (int r = row, c = col; r < n && c >= 0; r++, c--)
 			  if (chessGrid[r][c].hasQueen()) 
 				  return false;
-		  for (int r = row, c = col; r >= 0 && c < 8; r--, c++)
+		  for (int r = row, c = col; r >= 0 && c < n; r--, c++)
 			  if (chessGrid[r][c].hasQueen()) 
 				  return false;
 		  for (int r = row, c = col; r >= 0 && c >= 0; r--, c--)
@@ -171,144 +211,54 @@ public class ChessBoard {
 			  
 		   return true;
 	   }
-	   
-/*	   public int getDiagLength(int row, int col) {
-		   
-		   int length = 0;
-		   
-		   if (row > col)
-			   return 8 - (row - col);
-		   else if (col > row)
-			   return 8 - (row - col);
-		   return 8;
-		   
-		   
-		   
-	   }
-		
- 	   private boolean solve(ArrayList<int[]> positions) {
-		   
-		   if (positions.size() == 8)
+
+	   /**
+	    * Recursive method that solves the n Queens problem for this instance of ChessBoard
+	    * It does this by iterating through each row, starting at n and going down to 0,
+	    * traversing through a shuffled list of columns to see which one works first. The
+	    * columns are shuffled because if they aren't, it will find the exact same solution 
+	    * every time
+	    * @param cols - An ArrayList of the columns that have not yet been filled
+	    * @param row the current index 
+	    * @return Boolean true if the spot is Valid, false otherwise
+	    */
+	   public boolean solve(ArrayList<Integer> cols, int row) {
+			  
+		   if (row == -1)
 			   return true;
-		   
-		   for (int r = 0; r < ROWS; r++) {
-		         for (int c = 0; c < COLS; c++) {
-		          if (isValid(r,c)) {
-		        	  chessGrid[r][c].setState(true);
-		        	  int[] pos = {r,c};
-		        	  positions.add(pos);
-		        	  if (solve(positions) == true)
-		        		  return true;
-		        	  else
-		        		  positions.remove(pos);
-		          }
-	  
-		         }
-		      }
-		   
-		   return false;
-		   
-	   } 
-	   
-	 private boolean solve(ArrayList<Integer> cols, int row) {
-		  
-		  if (row == -1)
-			  return true;
-		  if (cols.size() == 0)
-			  return true;
-		  
-		  int a = (int)(Math.random() * cols.size() - 1);
-		 
-		  int c = cols.get(a);
-		  int r = 0;
-		  if (isValid(row, c)) {
-			  cols.remove(cols.get(a));
-			  chessGrid[row][c].setState(true);
-			  if (solve(cols, row - 1) == true) {
-				  chessGrid[row][c].setState(true);
-				  return true;
-			  }
-			  else {
-		//		if (iter >= MAX_ITER)
-		//		   return false;
-				  cols.add(c);
-			  	chessGrid[row][c].setState(false);
-			  	iter++;
-			  	return solve (cols, row);
+		   if (cols.size() == 0)
+			   return true;
 			  
-			  }
-		  }
-			  
-		   row++;
-		   return false;
-		   
-	   } 
-	 
-	 private boolean solve(ArrayList<Integer> cols, int row) {
-		  
-		  if (row == -1)
-			  return true;
-		  if (cols.size() == 0)
-			  return true;
-		  ArrayList<Integer> temp = randOrder(cols);
-		  cols = (ArrayList<Integer>) temp.clone();
-		  Integer c = 0;
-		  
-		  Iterator<Integer> iter = temp.iterator();
-		  while(iter.hasNext()) {
-			  c = iter.next();
+		   ArrayList<Integer> temp = (ArrayList<Integer>) cols.clone();
+		   for (Integer c : cols) {
 			  if (isValid(row, c)) {
-			      iter.remove();
+				  temp.remove(c);
 				  chessGrid[row][c].setState(true);
 				  if (solve(temp, row - 1) == true) {
-					  
-					  return true;
-				  }
-				  else {
-				  chessGrid[row][c].setState(false);
-				  temp.add(c);
-				  }
-			  }
-		  }
-			  
-		   row++;
-		   return false;
-		   
-	   } 
-	   
-	   private boolean solve(ArrayList<Integer> cols, int row) {
-			  
-			  if (row == -1)
-				  return true;
-			  if (cols.size() == 0)
-				  return true;
-			  
-			  int a = (int)(Math.random() * cols.size() - 1);
-			 
-			  int c = cols.get(a);
-			  int r = 0;
-			  if (isValid(row, c)) {
-				  cols.remove(cols.get(a));
-				  chessGrid[row][c].setState(true);
-				  if (solve(cols, row - 1) == true) {
 					  chessGrid[row][c].setState(true);
 					  return true;
 				  }
 				  else {
-					  cols.add(c);
+					  temp.add(c);
 				  	chessGrid[row][c].setState(false);
-			//	  	iter++;
-			//	  	return solve (cols, row);
-				  
 				  }
 			  }
-				  
-			   row++;
-			   return false;
+		   }  
+		   row++;
+		   return false;
 			   
-		   }  */
+		   }  
 	
-	   private boolean solve(ArrayList<Integer> cols, int row) {
+/* Original Solution - It only works between 79-82% of time but i like it better so i'll leave it
+	   /**
+	    * Recursive method that solves the n Queens problem for this instance of ChessBoard
+	    * It does this by iterating through each row, starting at n and going down to 0,
+	    * and trying a random column to see if that spot isValid
+	    * @param cols - An ArrayList of the columns that have not yet been filled
+	    * @param row the current index 
+	    * @return Boolean true if the spot is Valid, false otherwise
+	    
+	   public boolean solve(ArrayList<Integer> cols, int row) {
 			  
 			  if (row == -1)
 				  return true;
@@ -317,7 +267,7 @@ public class ChessBoard {
 			  
 			  int a = (int)(Math.random() * cols.size() - 1);
 			 
-			  int c = cols.get(a);
+			  Integer c = cols.get(a);
 			  
 			  if (isValid(row, c)) {
 				  cols.remove(cols.get(a));
@@ -338,32 +288,147 @@ public class ChessBoard {
 			   return false;
 			   
 		   } 
+	  */
 	   
+	   /**
+	    * stores the current solution to EightQueens in an Array
+	    * @return True if solution was unique and stored false otherwise
+	    */
+	   public boolean storeSolution() {
+		   
+		   ChessSquarePanel[][] copy = new ChessSquarePanel[8][8];
+
+		   for (int r = 0; r < ROWS; r ++) {
+			   for (int c = 0; c < COLS; c++) {
+				   copy[r][c] = new ChessSquarePanel(colorOne, chessGrid[r][c].hasQueen());
+				 
+			   }
+		   }
+		   
+		   
+		   for (ChessSquarePanel[][] g : allSolutionsFound) {
+			   if (!gridEqual(g, copy))
+				   return false;
+		   }
+		   allSolutionsFound.add(copy);
+		   
+		   return true;
+		   
+	   }
+	   
+	   /**
+	    * displays all the solutions found for n Queens 
+	    */
+	   public void displaySolutions() {
+		   
+		   int i = 1;
+		   for (ChessSquarePanel[][] g : allSolutionsFound) {
+			 display(g, i);
+			 i++;
+			   try {
+					Thread.sleep(2);
+				   } catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					
+				}
+		   }
+		   
+		   
+	   }
+	   
+	   /**
+	    * Displays One Given Solution of the game
+	    * @param g Given grid
+	    * @param i number solution this was
+	    */
+	   public void display(ChessSquarePanel[][] g, int i) {
+
+		   for (int r = 0; r < ROWS; r ++) {
+			   for (int c = 0; c < COLS; c++) {
+				   ChessSquarePanel s = chessGrid[r][c];
+				   boolean boo = g[r][c].hasQueen();
+				   if (boo == true)
+					   chessGrid[r][c].setState(true);
+				   else
+					   chessGrid[r][c].setState(false);
+				 
+			   }
+		   }
+		   System.out.println(SOLUTION_NUM + i); 
+	
+	   }
+	   
+	   /**
+	    * randomizes the order of a given arraylist
+	    * @param old ArrayList to be randomized
+	    * @return new arraylist in random order
+	    */ 
 		public ArrayList<Integer> randOrder(ArrayList<Integer> old) {
 			
 			ArrayList<Integer> cols = new ArrayList<Integer>();
 			
 			while (!old.isEmpty()) {
-				int a = (int)(Math.random() * old.size() - 1);
+				int a = (int)(Math.random() * old.size());
 				cols.add(old.get(a));
 				old.remove(a);
 			}
 			
 			return cols;
 		}
+		
+		/**
+		 * validates that there are eight queens on the board
+		 * @return boolean - true if there are eight queens, false if not
+		 */
+		public boolean checkIfSolved() {
+			
+			int numQ = 0;
+			
+			ChessSquarePanel s;
+			for (int r = 0; r < ROWS; r++) {
+		         for (int c = 0; c < COLS; c++) {
+		            s = chessGrid[r][c]; 
+		            if (s.hasQueen()) {
+		            	numQ++;
+		            }
+		         }
+		      }
+			
+			if (numQ != n)
+				return false;
+			else
+				return true;
+			
+		}
 	 
-	 	private String catchOverflow(ArrayList<Integer> cols) {
+		/**
+		 * container method for solve() used to prevent a stack overflow
+ 		 * @param cols ArrayList of cols to be used in solve
+		 * @return String representation of whether program worked or not
+		 */
+	 	public String catchOverflow(ArrayList<Integer> cols) {
+	 		
+	 		String toReturn = "";
+	 		ArrayList<Integer> temp = randOrder(cols);
 	 		
 	 		try{
-	            solve(cols, n - 1);
+	            solve(temp, n - 1);
 	        }
 	        catch(StackOverflowError e){
-	         /*   this.clear();
-	            return catchOverflow(cols); */
-	        	return "failed";
+	            return ERROR_SO;
 	        }
 	 		solNum += 1;
-	 		return SOLVED + solNum;
+	 		if (checkIfSolved()) {
+	 			numSuccess++;
+	 			toReturn += SOLVED + solNum;
+
+	 		}
+	 		else {
+	 			toReturn += FAILED + solNum;
+	 			
+	 		}
+	 		return toReturn;
 	 		
 	 	}
 	 	
@@ -379,27 +444,75 @@ public class ChessBoard {
 	 		}
 	 	}
 	   
-	   
-	   public boolean solve() {
+	   /**
+	    * checks if two given chess grids are equal
+	    * @param g1 first grid to be compared
+	    * @param g2 second grid to be compared
+	    * @return true if equal false if not
+	    */
+	   public boolean gridEqual(ChessSquarePanel[][] g1, ChessSquarePanel[][] g2) {
 		   
+		   for (int r = 0; r < ROWS; r++) {
+			   for (int c = 0; c < ROWS; c++)  {
+				   boolean a = g1[r][c].hasQueen();
+			   	   boolean b = g2[r][c].hasQueen();
+				   if (b != a)
+					return false;
+			   }
+		   }
 		   
-		   return false;
+		   return true;
+		   
 	   }
+	   
+	   /**
+	    * Displays a solution given in a text file
+	    * @param col - column coordinates of where the queens are
+	    */
+	   public void displayGivenSol(int[] col) {
+		   
+		   this.clear();
 
-	   public static void main(String[] args) {
+		   int c = 0;
+		   
+		   for (int r = 0; r < n; r++) {
+			   c = col[r];
+			   chessGrid[r][c].setState(true);
+		   }
+		   
+		   
+	   }
+	   
+
+	   /**
+	    * Tests this Program by running the problem 1000 times and finding the success rate
+	    * @param args Program Args
+	 * @throws IOException Error in file handling
+	    */
+	   public static void main(String[] args) throws IOException {
 		
-	      ChessBoard cb = new ChessBoard();
-/*	//      ArrayList<int[]> pos = new ArrayList<int[]>();
-	    
-	      ArrayList<Integer> unusedCols = new ArrayList<Integer>();
-	//      boolean[] cols = new boolean[8];
+	      ChessBoard cb = new ChessBoard(8);
+	      BufferedReader inputReader = null;
+		    try {
+		    	inputReader = new BufferedReader(new FileReader("willsSolution.txt"), 1024);
+		    }
+		    catch (FileNotFoundException e) {
+		    	System.out.println(ERROR_IO);
+		    	System.exit(0);
+		    }
 	      for (int i = 0; i < 8; i++) {
-	    //	  cols[i] = false;
-	    	  unusedCols.add(i);
-	      } 
-	      System.out.println(cb.catchOverflow(unusedCols));
+	    	  String s = inputReader.readLine();
+	    	  cb.givenCols[i] = Integer.parseInt(s);
+	      }
+	      
+	      while (solNum < 1000)
+	    	  cb.action();
+	      double s = (cb.numSuccess / (double) solNum) * 100;
+	      System.out.println(SUCCESS_RATE + " " + s + "%");
 
-	     */
+	      
+	      
+
 	   }
 
 	
